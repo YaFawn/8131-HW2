@@ -1,0 +1,128 @@
+---
+title: "8131 HW2"
+output: html_document
+date: "2023-02-13"
+---
+
+# problem 1
+```{r}
+# make the dataset
+bio_data <- data.frame(
+  dose = c(0,1,2,3,4),
+  death = c(2,8,15,23,27),
+  alive = 30-c(2,8,15,23,27)
+)
+```
+
+```{r}
+# fit three models
+logit_fit <- glm(cbind(death,alive) ~ dose, family = binomial(link = "logit"), data = bio_data)
+probit_fit <- glm(cbind(death,alive) ~ dose, family = binomial(link = "probit"), data = bio_data)
+cloglog_fit <- glm(cbind(death,alive) ~ dose, family = binomial(link = "cloglog"), data = bio_data)
+summary(logit_fit)
+summary(probit_fit)
+summary(cloglog_fit)
+```
+
+```{r}
+# confidence intervals of beta of three models
+CI_logit_L = 1.1619 - 1.96*0.1814
+CI_logit_R = 1.1619 + 1.96*0.1814
+CI_probit_L = 0.68638 - 1.96*0.09677
+CI_probit_R = 0.68638 + 1.96*0.09677
+CI_cloglog_L = 0.7468 - 1.96*0.1094
+CI_cloglog_R = 0.7468 + 1.96*0.1094
+```
+
+```{r}
+# predictions when dose is 0.01
+pre_logit = predict(logit_fit, newdata = data.frame(dose = 0.01), type = 'response')
+pre_probit = predict(probit_fit, newdata = data.frame(dose = 0.01), type = 'response')
+pre_cloglog = predict(cloglog_fit, newdata = data.frame(dose = 0.01), type = 'response')
+```
+
+```{r}
+# logit_point_estimate
+est_logit = -logit_fit$coefficients[1]/logit_fit$coefficients[2]
+# probit_point_estimate
+est_probit = -probit_fit$coefficients[1]/probit_fit$coefficients[2]
+# cloglog_point_estimate
+est_cloglog = (log(-log(0.5))-cloglog_fit$coefficients[1])/cloglog_fit$coefficients[2]
+```
+
+
+```{r}
+# se_logit
+beta0_logit = logit_fit$coefficients[1]
+beta1_logit = logit_fit$coefficients[2]
+cov_logit = vcov(logit_fit)
+var_logit = cov_logit[1,1]/(beta1_logit^2) + cov_logit[2,2]*(beta0_logit^2)/(beta1_logit^4) - 2*cov_logit[1,2]*beta0_logit/(beta1_logit^3)
+se_logit = sqrt(var_logit)
+
+# se_probit
+beta0_probit = probit_fit$coefficients[1]
+beta1_probit = probit_fit$coefficients[2]
+cov_probit = vcov(probit_fit)
+var_probit = cov_probit[1,1]/(beta1_probit^2) + cov_probit[2,2]*(beta0_probit^2)/(beta1_probit^4) - 2*cov_probit[1,2]*beta0_probit/(beta1_probit^3)
+se_probit = sqrt(var_probit)
+
+# se_cloglog
+beta0_cloglog = cloglog_fit$coefficients[1]
+beta1_cloglog = cloglog_fit$coefficients[2]
+cov_cloglog = vcov(cloglog_fit)
+var_cloglog = cov_cloglog[1,1]/(beta1_cloglog^2) + cov_cloglog[2,2]*(beta0_cloglog^2)/(beta1_cloglog^4) - 2*cov_cloglog[1,2]*beta0_cloglog/(beta1_cloglog^3)
+se_cloglog = sqrt(var_cloglog)
+```
+
+```{r}
+# 90% CI for LD50
+# logit
+round(exp(est_logit+c(qnorm(0.05),-qnorm(0.05))*se_logit),2)
+
+# probit
+round(exp(est_probit+c(qnorm(0.05),-qnorm(0.05))*se_probit),2)
+
+# cloglog
+round(exp(est_cloglog+c(qnorm(0.05),-qnorm(0.05))*se_cloglog),2)
+```
+
+# problem 2
+```{r}
+# data entry
+amount = c(seq(10,90, by=5))
+offer = c(4,6,10,12,39,36,22,14,10,12,8,9,3,1,5,2,1)
+enroll = c(0,2,4,2,12,14,10,7,5,5,3,5,2,0,4,2,1)
+data = data.frame(amount, offer, enroll)
+```
+
+```{r}
+# model building
+logit_model=glm(cbind(enroll,offer-enroll) ~ amount, data=data,family=binomial(link="logit"))
+```
+
+```{r}
+# HL test
+library(ResourceSelection)
+hoslem.test(logit_model$y, fitted(logit_model), g=10)
+```
+
+```{r}
+# parameters and CI
+summary(logit_model)
+cov_mtx = vcov(logit_model)
+beta0 = logit_model$coefficients[1]
+beta1 = logit_model$coefficients[2]
+var_beta1 = vcov(logit_model)[2,2]
+se_beta1 = sqrt(var_beta1)
+exp(beta1)
+round(exp(beta1+c(qnorm(0.025),-qnorm(0.025))*se_beta1),3)
+```
+
+```{r}
+# predictions
+x = (log(2/3)+1.64764)/0.03095
+var_x = cov_mtx[1,1]/(beta1^2) + cov_mtx[2,2]*((log(2/3)-beta0)^2)/(beta1^4) + 2*cov_mtx[1,2]*(log(2/3)-beta0)/(beta1^3)
+se_x = sqrt(var_x)
+round(x+c(qnorm(0.025),-qnorm(0.025))*se_x,3)
+```
+
